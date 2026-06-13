@@ -1,19 +1,13 @@
 "use client";
 
-import { Suspense, useRef } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
-import {
-  OrbitControls,
-  Environment,
-  ContactShadows,
-  Center,
-} from "@react-three/drei";
+import { OrbitControls, ContactShadows, Center } from "@react-three/drei";
 import type { BouquetConfig } from "@/lib/catalog";
 import { Bouquet } from "./Bouquet";
 
 export type CaptureFn = () => string | null;
 
-/** Bridges a thumbnail-capture function up to the parent via a ref. */
 function CaptureBridge({ captureRef }: { captureRef: React.RefObject<CaptureFn | null> }) {
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
@@ -43,59 +37,67 @@ export function BouquetCanvas({
   const internalRef = useRef<CaptureFn | null>(null);
   const ref = captureRef ?? internalRef;
 
+  // The canvas can mount before its container is measured (dynamic import +
+  // flex/percentage layout), leaving it at the default 300x150. Nudging a
+  // resize on the next frame forces R3F to remeasure and size correctly.
+  useEffect(() => {
+    const id = requestAnimationFrame(() =>
+      window.dispatchEvent(new Event("resize"))
+    );
+    return () => cancelAnimationFrame(id);
+  }, []);
+
   return (
     <Canvas
       className={className}
       shadows
       dpr={[1, 2]}
+      resize={{ debounce: 0 }}
       gl={{ preserveDrawingBuffer: true, antialias: true }}
-      camera={{ position: [0, 1.2, 6], fov: 38 }}
+      camera={{ position: [0, 0.3, 3.2], fov: 42 }}
     >
-      <color attach="background" args={["#f1f3ee"]} />
-      <ambientLight intensity={0.55} />
+      <color attach="background" args={["#fdf6f3"]} />
+      <hemisphereLight args={["#fff6f0", "#e9e0d6", 0.9]} />
+      <ambientLight intensity={0.35} />
       <directionalLight
-        position={[4, 7, 5]}
-        intensity={2.1}
+        position={[3.5, 6, 4]}
+        intensity={2.0}
         castShadow
         shadow-mapSize={[1024, 1024]}
         shadow-bias={-0.0003}
       />
-      <directionalLight position={[-5, 3, -4]} intensity={0.7} color="#cfe0ff" />
+      <directionalLight position={[-4, 2.5, -3]} intensity={0.6} color="#ffe6d8" />
 
       <Suspense fallback={null}>
-        <Center key={cacheKey(config)} position={[0, 0.3, 0]}>
+        {/* Re-mounting on any config change guarantees a clean rebuild and
+            re-frames the bouquet every time. */}
+        <Center key={JSON.stringify(config)} position={[0, 0.15, 0]}>
           <Bouquet config={config} />
         </Center>
-        <Environment preset="apartment" />
       </Suspense>
 
       <ContactShadows
-        position={[0, -1.9, 0]}
-        opacity={0.4}
-        scale={10}
-        blur={2.6}
-        far={4}
-        color="#2c3a2e"
+        position={[0, -1.35, 0]}
+        opacity={0.32}
+        scale={7}
+        blur={2.8}
+        far={3}
+        color="#7a5a52"
       />
 
       <OrbitControls
         makeDefault
         enablePan={false}
         autoRotate={autoRotate}
-        autoRotateSpeed={0.8}
-        minDistance={3.5}
-        maxDistance={9}
-        minPolarAngle={0.3}
-        maxPolarAngle={Math.PI / 1.8}
-        target={[0, 0.3, 0]}
+        autoRotateSpeed={0.85}
+        minDistance={2.6}
+        maxDistance={7}
+        minPolarAngle={0.35}
+        maxPolarAngle={Math.PI / 1.85}
+        target={[0, 0.15, 0]}
       />
 
       {captureRef && <CaptureBridge captureRef={ref} />}
     </Canvas>
   );
-}
-
-// Re-center whenever the silhouette could change so the bouquet stays framed.
-function cacheKey(c: BouquetConfig): string {
-  return `${c.flower}-${c.size}-${c.shape}-${c.stemLength}-${c.wrap}-${c.accentFlower}-${c.cardShape}`;
 }
