@@ -1,43 +1,39 @@
 @import "tailwindcss";
 
+/* Amra Flowers — soft & playful pastel theme.
+   Locked to a light, cheerful palette: blush, peach and sage. */
 :root {
-  --surface: #f7f8f5;
-  --surface-raised: #ffffff;
-  --surface-sunken: #eef0ea;
-  --ink: #14201a;
-  --ink-soft: #4c5a52;
-  --ink-faint: #828d85;
-  --brand: #1d3a2a;
-  --brand-deep: #142b1f;
-  --accent: #b06f24;
-  --accent-strong: #8f5719;
-  --line: #dde2da;
-  --success: #2f7d4f;
-  --danger: #b3422e;
-}
+  color-scheme: light;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --surface: #0f1813;
-    --surface-raised: #16221b;
-    --surface-sunken: #0b120e;
-    --ink: #e9ede8;
-    --ink-soft: #aab5ac;
-    --ink-faint: #76817a;
-    --brand: #9fc2ab;
-    --brand-deep: #c4dccd;
-    --accent: #e09a3e;
-    --accent-strong: #f0ad52;
-    --line: #243329;
-    --success: #5eb685;
-    --danger: #e07258;
-  }
+  --surface: #fdf7f4;
+  --surface-raised: #ffffff;
+  --surface-sunken: #f8ece7;
+  --surface-blush: #fbe9ec;
+  --surface-sage: #eaf1ea;
+  --surface-peach: #fdeede;
+
+  --ink: #45343f;
+  --ink-soft: #8a7780;
+  --ink-faint: #bcaab2;
+
+  --brand: #d2698a;        /* friendly rose — primary actions */
+  --brand-deep: #bd567a;
+  --accent: #ea9a6a;       /* warm peach — highlights */
+  --accent-strong: #db7c4c;
+  --sage: #8fb39a;         /* soft sage — tertiary */
+
+  --line: #f1e3dd;
+  --success: #5aa877;
+  --danger: #d4685a;
 }
 
 @theme inline {
   --color-surface: var(--surface);
   --color-surface-raised: var(--surface-raised);
   --color-surface-sunken: var(--surface-sunken);
+  --color-surface-blush: var(--surface-blush);
+  --color-surface-sage: var(--surface-sage);
+  --color-surface-peach: var(--surface-peach);
   --color-ink: var(--ink);
   --color-ink-soft: var(--ink-soft);
   --color-ink-faint: var(--ink-faint);
@@ -45,11 +41,19 @@
   --color-brand-deep: var(--brand-deep);
   --color-accent: var(--accent);
   --color-accent-strong: var(--accent-strong);
+  --color-sage: var(--sage);
   --color-line: var(--line);
   --color-success: var(--success);
   --color-danger: var(--danger);
-  --font-display: var(--font-bricolage), ui-sans-serif, sans-serif;
-  --font-body: var(--font-instrument), system-ui, sans-serif;
+
+  --font-display: var(--font-baloo), ui-sans-serif, sans-serif;
+  --font-body: var(--font-nunito), system-ui, sans-serif;
+
+  /* Rounder corners across the board for a soft, playful feel. */
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
 }
 
 html {
@@ -59,12 +63,12 @@ html {
 body {
   background: var(--surface);
   color: var(--ink);
-  font-family: var(--font-instrument), system-ui, sans-serif;
+  font-family: var(--font-nunito), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
 ::selection {
-  background: var(--accent);
+  background: var(--brand);
   color: #fff;
 }
 

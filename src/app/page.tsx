@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import {
   Flower,
   PaintBrushBroad,
@@ -35,10 +34,10 @@ const STEPS = [
 ];
 
 const OCCASIONS = [
-  { label: "Anniversary", seed: "amra-occ-anniversary" },
-  { label: "Birthday", seed: "amra-occ-birthday" },
-  { label: "Sympathy", seed: "amra-occ-sympathy" },
-  { label: "Congratulations", seed: "amra-occ-congrats" },
+  { label: "Anniversary", from: "#d2698a", to: "#ea9a6a" },
+  { label: "Birthday", from: "#ea9a6a", to: "#e8c34a" },
+  { label: "Sympathy", from: "#8fb39a", to: "#bcd1c4" },
+  { label: "Congratulations", from: "#a98ec4", to: "#d2698a" },
 ];
 
 export default function Home() {
@@ -134,17 +133,17 @@ export default function Home() {
             <Link
               key={occ.label}
               href={`/occasions?for=${occ.label.toLowerCase()}`}
-              className="group relative aspect-[5/4] overflow-hidden rounded-2xl"
+              className="group relative flex aspect-[5/4] items-end overflow-hidden rounded-3xl p-5"
+              style={{
+                background: `linear-gradient(150deg, ${occ.from} 0%, ${occ.to} 100%)`,
+              }}
             >
-              <Image
-                src={`https://picsum.photos/seed/${occ.seed}/500/400`}
-                alt={occ.label}
-                fill
-                sizes="(max-width: 768px) 50vw, 25vw"
-                className="object-cover transition-transform duration-500 group-hover:scale-105"
+              <Flower
+                size={64}
+                weight="fill"
+                className="absolute right-3 top-3 text-white/30 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-12"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />
-              <span className="absolute bottom-4 left-4 font-display text-xl font-medium text-white">
+              <span className="relative font-display text-xl font-semibold text-white drop-shadow-sm">
                 {occ.label}
               </span>
             </Link>

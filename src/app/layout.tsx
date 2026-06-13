@@ -1,16 +1,19 @@
 import type { Metadata } from "next";
-import { Bricolage_Grotesque, Instrument_Sans } from "next/font/google";
+import { Baloo_2, Nunito } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
 
-const bricolage = Bricolage_Grotesque({
-  variable: "--font-bricolage",
+// Baloo 2 — rounded, warm and friendly — for headlines.
+const baloo = Baloo_2({
+  variable: "--font-baloo",
   subsets: ["latin"],
+  weight: ["500", "600", "700"],
 });
 
-const instrument = Instrument_Sans({
-  variable: "--font-instrument",
+// Nunito — soft, highly legible — for body copy.
+const nunito = Nunito({
+  variable: "--font-nunito",
   subsets: ["latin"],
 });
 
@@ -31,7 +34,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${bricolage.variable} ${instrument.variable} h-full antialiased`}
+      className={`${baloo.variable} ${nunito.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <Header />
