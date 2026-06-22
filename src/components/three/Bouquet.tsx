@@ -2,7 +2,6 @@ import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import {
   type BouquetConfig,
-  flowerById,
   shadeHex,
   wrapColorHex,
   ribbonHex,
@@ -17,10 +16,18 @@ import {
   buildCardStickGeometry,
 } from "./geometry/wrap";
 import { getCardTexture } from "./geometry/cardTexture";
+import { useFlowerHeads, type HeadAsset } from "./geometry/flowerModels";
+import type { FlowerId } from "@/lib/catalog";
 
 const UP = new THREE.Vector3(0, 1, 0);
 
-/** Orientation that maps the geometry's +Y axis onto a stem direction. */
+/** Marks resources this build created so cleanup disposes only those, never the
+ *  shared (loaded glTF / cached procedural) head geometry and textures. */
+function own<T extends THREE.BufferGeometry | THREE.Material>(x: T): T {
+  x.userData.amraDisposable = true;
+  return x;
+}
+
 function headMatrix(p: StemPlacement): THREE.Matrix4 {
   const q = new THREE.Quaternion().setFromUnitVectors(UP, p.direction);
   return new THREE.Matrix4().compose(
@@ -48,140 +55,126 @@ function instanced(
   return mesh;
 }
 
-/**
- * Builds the entire bouquet as a disposable THREE.Group from a config. Memoized
- * by the component below so it only rebuilds when a choice actually changes.
- */
-function buildBouquetGroup(config: BouquetConfig): THREE.Group {
+/** Resolves a flower's head to either a loaded glTF model or procedural fallback. */
+function resolveHead(
+  flowerId: FlowerId,
+  heads: Partial<Record<FlowerId, HeadAsset>>
+): { geometry: THREE.BufferGeometry; material: THREE.Material; fixed: HeadAsset | null } {
+  const loaded = heads[flowerId];
+  if (loaded) {
+    // clone the (cached) material per build so primary/accent tint independently
+    return { geometry: loaded.geometry, material: own(loaded.material.clone()), fixed: null };
+  }
+  const proc = getFlowerGeometry(flowerId);
+  const material = own(
+    new THREE.MeshStandardMaterial({ roughness: 0.62, metalness: 0, side: THREE.DoubleSide })
+  );
+  const fixed = proc.fixed
+    ? {
+        geometry: proc.fixed.geometry,
+        material: own(
+          new THREE.MeshStandardMaterial({ color: proc.fixed.color, roughness: 0.7 })
+        ),
+      }
+    : null;
+  return { geometry: proc.tinted, material, fixed };
+}
+
+function buildBouquetGroup(
+  config: BouquetConfig,
+  heads: Partial<Record<FlowerId, HeadAsset>>
+): THREE.Group {
   const group = new THREE.Group();
   const layout = buildLayout(config);
-
   const primary = layout.stems.filter((s) => !s.isAccent);
   const accents = layout.stems.filter((s) => s.isAccent);
 
   // --- Stems ---
-  const stemMat = new THREE.MeshStandardMaterial({
-    color: "#5b7146",
-    roughness: 0.8,
-    metalness: 0,
-  });
-  const stemMesh = new THREE.Mesh(layout.stemGeometry, stemMat);
+  const stemMat = own(
+    new THREE.MeshStandardMaterial({ color: "#5b7146", roughness: 0.8, metalness: 0 })
+  );
+  const stemMesh = new THREE.Mesh(own(layout.stemGeometry), stemMat);
   stemMesh.castShadow = true;
   group.add(stemMesh);
 
-  // --- Flower heads (primary) ---
-  // Per-instance color comes from InstancedMesh.setColorAt (the instanceColor
-  // attribute); do NOT enable vertexColors or the heads render black.
-  const headMat = new THREE.MeshStandardMaterial({
-    roughness: 0.62,
-    metalness: 0,
-    side: THREE.DoubleSide,
-  });
-  const primaryGeo = getFlowerGeometry(config.flower);
+  // --- Primary heads ---
+  const ph = resolveHead(config.flower, heads);
   group.add(
-    instanced(
-      primaryGeo.tinted,
-      headMat,
-      primary,
-      new THREE.Color(shadeHex(config.flower, config.shade))
-    )
+    instanced(ph.geometry, ph.material, primary, new THREE.Color(shadeHex(config.flower, config.shade)))
   );
-  if (primaryGeo.fixed) {
-    const fixedMat = new THREE.MeshStandardMaterial({
-      color: primaryGeo.fixed.color,
-      roughness: 0.7,
-    });
-    group.add(instanced(primaryGeo.fixed.geometry, fixedMat, primary));
-  }
+  if (ph.fixed) group.add(instanced(ph.fixed.geometry, ph.fixed.material, primary));
 
-  // --- Flower heads (accent) ---
+  // --- Accent heads ---
   if (config.accentFlower && config.accentShade && accents.length) {
-    const accentGeo = getFlowerGeometry(config.accentFlower);
-    const accentMat = new THREE.MeshStandardMaterial({
-      roughness: 0.62,
-      metalness: 0,
-      side: THREE.DoubleSide,
-    });
+    const ah = resolveHead(config.accentFlower, heads);
     group.add(
       instanced(
-        accentGeo.tinted,
-        accentMat,
+        ah.geometry,
+        ah.material,
         accents,
         new THREE.Color(shadeHex(config.accentFlower, config.accentShade))
       )
     );
-    if (accentGeo.fixed) {
-      const fixedMat = new THREE.MeshStandardMaterial({
-        color: accentGeo.fixed.color,
-        roughness: 0.7,
-      });
-      group.add(instanced(accentGeo.fixed.geometry, fixedMat, accents));
-    }
+    if (ah.fixed) group.add(instanced(ah.fixed.geometry, ah.fixed.material, accents));
   }
 
   // --- Greenery ---
   if (config.greenery !== "none") {
-    const kind = greeneryById(config.greenery).id as
-      | "eucalyptus"
-      | "fern"
-      | "babys-breath";
+    const kind = greeneryById(config.greenery).id as "eucalyptus" | "fern" | "babys-breath";
     const sprigs = greeneryDirections(config, layout);
-    const leafGeo = makeLeafGeometry(kind);
     const leafColor =
       kind === "babys-breath" ? "#f3f1e8" : kind === "eucalyptus" ? "#8fa389" : "#4f6b3c";
-    const leafMat = new THREE.MeshStandardMaterial({
-      color: leafColor,
-      roughness: 0.8,
-      side: THREE.DoubleSide,
-    });
-    group.add(instanced(leafGeo, leafMat, sprigs));
+    const leafMat = own(
+      new THREE.MeshStandardMaterial({ color: leafColor, roughness: 0.8, side: THREE.DoubleSide })
+    );
+    group.add(instanced(own(makeLeafGeometry(kind)), leafMat, sprigs));
   }
 
   // --- Wrap ---
-  const wrapGeo = buildWrapGeometry(config, layout.spread, layout.height);
-  const wrapMat = new THREE.MeshStandardMaterial({
-    color: wrapColorHex(config.wrap, config.wrapColor),
-    roughness: config.wrap === "satin" ? 0.35 : config.wrap === "box" ? 0.5 : 0.85,
-    metalness: config.wrap === "satin" ? 0.1 : 0,
-    side: THREE.DoubleSide,
-  });
-  const wrapMesh = new THREE.Mesh(wrapGeo, wrapMat);
+  const wrapMat = own(
+    new THREE.MeshStandardMaterial({
+      color: wrapColorHex(config.wrap, config.wrapColor),
+      roughness: config.wrap === "satin" ? 0.35 : config.wrap === "box" ? 0.5 : 0.85,
+      metalness: config.wrap === "satin" ? 0.1 : 0,
+      side: THREE.DoubleSide,
+    })
+  );
+  const wrapMesh = new THREE.Mesh(own(buildWrapGeometry(config, layout.spread, layout.height)), wrapMat);
   wrapMesh.castShadow = true;
   wrapMesh.receiveShadow = true;
   group.add(wrapMesh);
 
   // --- Ribbon ---
   if (config.wrap !== "box") {
-    const ribbonGeo = buildRibbonGeometry(layout.spread);
-    const ribbonMat = new THREE.MeshStandardMaterial({
-      color: ribbonHex(config.ribbon),
-      roughness: 0.45,
-      metalness: 0.05,
-      side: THREE.DoubleSide,
-    });
-    group.add(new THREE.Mesh(ribbonGeo, ribbonMat));
+    const ribbonMat = own(
+      new THREE.MeshStandardMaterial({
+        color: ribbonHex(config.ribbon),
+        roughness: 0.45,
+        metalness: 0.05,
+        side: THREE.DoubleSide,
+      })
+    );
+    group.add(new THREE.Mesh(own(buildRibbonGeometry(layout.spread)), ribbonMat));
   }
 
   // --- Message card ---
   if (config.cardShape) {
     const cardGroup = new THREE.Group();
-    const cardGeo = buildCardGeometry(config.cardShape);
     const texture = getCardTexture(config.message);
-    const frontMat = new THREE.MeshStandardMaterial({
-      map: texture,
-      roughness: 0.85,
-    });
-    const card = new THREE.Mesh(cardGeo, frontMat);
+    const card = new THREE.Mesh(
+      own(buildCardGeometry(config.cardShape)),
+      own(new THREE.MeshStandardMaterial({ map: texture, roughness: 0.85 }))
+    );
     card.castShadow = true;
     cardGroup.add(card);
 
-    const stickGeo = buildCardStickGeometry();
-    const stickMat = new THREE.MeshStandardMaterial({ color: "#caa86a", roughness: 0.6 });
-    const stick = new THREE.Mesh(stickGeo, stickMat);
+    const stick = new THREE.Mesh(
+      own(buildCardStickGeometry()),
+      own(new THREE.MeshStandardMaterial({ color: "#caa86a", roughness: 0.6 }))
+    );
     stick.position.y = -0.42;
     cardGroup.add(stick);
 
-    // tuck the card into the front-right of the arrangement, tilted out
     const r = Math.max(0.5, layout.spread * 0.75);
     cardGroup.position.set(r * 0.55, layout.height * 0.15, r * 0.9);
     cardGroup.rotation.set(0.18, -0.5, 0.05);
@@ -192,32 +185,22 @@ function buildBouquetGroup(config: BouquetConfig): THREE.Group {
 }
 
 export function Bouquet({ config }: { config: BouquetConfig }) {
-  const group = useMemo(() => buildBouquetGroup(config), [config]);
+  const heads = useFlowerHeads();
+  const group = useMemo(() => buildBouquetGroup(config, heads), [config, heads]);
 
-  // Dispose the previous group's geometry/materials when the config changes.
+  // Dispose only the resources this build created (tagged amraDisposable).
   useEffect(() => {
     return () => {
       group.traverse((obj) => {
         const mesh = obj as THREE.Mesh;
-        if (mesh.isMesh) {
-          // shared cached flower-head geometry is reused; only dispose the
-          // per-build geometry (stems, wrap, ribbon, card, greenery clones)
-          const g = mesh.geometry;
-          const keepCached =
-            g === getFlowerGeometry(config.flower).tinted ||
-            (config.accentFlower &&
-              g === getFlowerGeometry(config.accentFlower).tinted);
-          if (!keepCached) g.dispose();
-          const mat = mesh.material as THREE.Material | THREE.Material[];
-          if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
-          else mat.dispose();
-        }
+        if (!mesh.isMesh) return;
+        if (mesh.geometry?.userData.amraDisposable) mesh.geometry.dispose();
+        const mat = mesh.material as THREE.Material | THREE.Material[];
+        const mats = Array.isArray(mat) ? mat : [mat];
+        mats.forEach((m) => m?.userData.amraDisposable && m.dispose());
       });
     };
-  }, [group, config.flower, config.accentFlower]);
-
-  // flowerById call keeps the import used and validates the id early
-  flowerById(config.flower);
+  }, [group]);
 
   return <primitive object={group} />;
 }

@@ -38,13 +38,17 @@ export function BouquetCanvas({
   const ref = captureRef ?? internalRef;
 
   // The canvas can mount before its container is measured (dynamic import +
-  // flex/percentage layout), leaving it at the default 300x150. Nudging a
-  // resize on the next frame forces R3F to remeasure and size correctly.
+  // flex/percentage layout), leaving it at the default 300x150. Nudge a few
+  // resizes over the first moments so R3F remeasures once layout settles.
   useEffect(() => {
-    const id = requestAnimationFrame(() =>
-      window.dispatchEvent(new Event("resize"))
+    const raf = requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
+    const timers = [80, 250, 600].map((ms) =>
+      setTimeout(() => window.dispatchEvent(new Event("resize")), ms)
     );
-    return () => cancelAnimationFrame(id);
+    return () => {
+      cancelAnimationFrame(raf);
+      timers.forEach(clearTimeout);
+    };
   }, []);
 
   return (
