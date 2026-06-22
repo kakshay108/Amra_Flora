@@ -26,34 +26,21 @@ export function buildWrapGeometry(
     return box;
   }
 
-  const topR = Math.max(0.6, spread * 0.95);
-  const bottomR = 0.07;
-  const top = Math.max(0.5, height * 0.42);
-  const bottom = -0.55;
-  const facets = config.wrap === "jute" ? 9 : 7;
+  // The wrap sits low, beneath the bloom mass, so the flowers always dominate
+  // and overhang its rim. A smooth, many-faceted cone reads as paper far better
+  // than the old low-poly triangle did against realistic flower models.
+  const topR = Math.max(0.5, spread * 0.78);
+  const bottomR = 0.06;
+  const top = Math.max(0.15, height * 0.18);
+  const bottom = -0.62;
+  const facets = 28;
 
-  const cone = new THREE.CylinderGeometry(
-    topR,
-    bottomR,
-    top - bottom,
-    facets,
-    1,
-    true
-  );
+  const cone = new THREE.CylinderGeometry(topR, bottomR, top - bottom, facets, 1, true);
   cone.translate(0, (top + bottom) / 2, 0);
 
-  // A second, slightly larger and shorter outer collar gives the wrap a folded
-  // double-layer silhouette at the top.
-  const collar = new THREE.CylinderGeometry(
-    topR * 1.12,
-    topR * 0.7,
-    top * 0.5,
-    facets,
-    1,
-    true
-  );
-  collar.translate(0, top * 0.78, 0);
-  collar.rotateY(Math.PI / facets);
+  // A short outer collar flares slightly outward at the rim for a folded edge.
+  const collar = new THREE.CylinderGeometry(topR * 1.16, topR * 0.92, top * 0.4, facets, 1, true);
+  collar.translate(0, top - top * 0.12, 0);
 
   const merged = mergeGeometries([cone, collar], false)!;
   cone.dispose();
