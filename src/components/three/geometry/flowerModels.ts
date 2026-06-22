@@ -30,11 +30,11 @@ const base = (id: FlowerId): FlowerModelDef => ({
 });
 
 export const FLOWER_MODELS: Record<FlowerId, FlowerModelDef> = {
-  rose: base("rose"),
-  tulip: base("tulip"),
-  lily: { ...base("lily"), targetRadius: 0.3 },
+  rose: { ...base("rose"), present: true },
+  tulip: { ...base("tulip"), present: true },
+  lily: { ...base("lily"), present: true, targetRadius: 0.3 },
   sunflower: { ...base("sunflower"), targetRadius: 0.32 },
-  carnation: base("carnation"),
+  carnation: { ...base("carnation"), present: true },
   gerbera: { ...base("gerbera"), targetRadius: 0.28 },
   orchid: base("orchid"),
 };

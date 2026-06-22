@@ -50,7 +50,7 @@ export function StudioClient({ initialConfig }: { initialConfig?: BouquetConfig 
         <div className="relative h-[44vh] w-full overflow-hidden bg-surface-sunken lg:h-full">
           <LazyBouquetCanvas
             config={config}
-            autoRotate
+            autoRotate={false}
             captureRef={captureRef}
             className="!h-full !w-full"
           />

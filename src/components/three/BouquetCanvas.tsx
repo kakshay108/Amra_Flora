@@ -56,6 +56,7 @@ export function BouquetCanvas({
       className={className}
       shadows
       dpr={[1, 2]}
+      frameloop={autoRotate ? "always" : "demand"}
       resize={{ debounce: 0 }}
       gl={{ preserveDrawingBuffer: true, antialias: true }}
       camera={{ position: [0, 0.3, 3.2], fov: 42 }}
@@ -81,6 +82,7 @@ export function BouquetCanvas({
       </Suspense>
 
       <ContactShadows
+        frames={1}
         position={[0, -1.35, 0]}
         opacity={0.32}
         scale={7}

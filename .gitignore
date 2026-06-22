@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# raw 3D model sources (extracted Sketchfab downloads — optimized GLBs are committed)
+/tmp_models
